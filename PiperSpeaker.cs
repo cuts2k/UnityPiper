@@ -31,9 +31,13 @@ namespace Abuksigun.Piper
         }
 
         // Use when you want to interrupt the current speech and say new replica
-        public Task Speak(string text)
+        public unsafe Task Speak(string text, Int64 speakerID = -1)
         {
             pcmBufferPointer = 0;
+            if (speakerID >= 0)
+            {
+                PiperLib.setSpeakerID(voice.Voice, &speakerID);
+            }
             return OverrideSpeech(text);
         }
 

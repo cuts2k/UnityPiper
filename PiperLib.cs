@@ -120,6 +120,9 @@ namespace Abuksigun.Piper
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern void loadVoice(PiperConfig* config, string modelPath, string modelConfigPath, Voice* voice, Int64* speakerId);
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern void setSpeakerID(Voice* voice, Int64* speakerId);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void AudioCallbackDelegate(short* audioBuffer, int length);
 
