@@ -15,13 +15,16 @@ namespace Abuksigun.Piper
         volatile string queuedText = null;
         Task speachTask = null;
 
+        // Event that gets fired in the else block of PCMRead
+        public event Action StoppedPlaying;
+
         public AudioClip AudioClip => audioClip;
 
-        public unsafe PiperSpeaker(PiperVoice voice)
+        public unsafe PiperSpeaker(PiperVoice voice, int bufferSize = 1024)
         {
             this.voice = voice;
             PiperLib.SynthesisConfig synthesisConfig = PiperLib.getSynthesisConfig(voice.Voice);
-            audioClip = AudioClip.Create("MyPCMClip", 1024 * 24, synthesisConfig.channels, synthesisConfig.sampleRate, true, PCMRead);
+            audioClip = AudioClip.Create("MyPCMClip", bufferSize * 24, synthesisConfig.channels, synthesisConfig.sampleRate, true, PCMRead);
         }
 
         ~PiperSpeaker()
@@ -114,6 +117,7 @@ namespace Abuksigun.Piper
                     else
                     {
                         Array.Fill(data, 0, dataIndex, data.Length - dataIndex);
+                        StoppedPlaying?.Invoke();
                         break;
                     }
                 }
