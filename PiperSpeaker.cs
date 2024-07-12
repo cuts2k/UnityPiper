@@ -52,11 +52,11 @@ namespace Abuksigun.Piper
         {
             lock (pcmBuffers)
                 pcmBuffers.Clear();
-            return ContinueSpeach(text);
+            return ContinueSpeech(text);
         }
 
         // Use when you want to add more text to the current speech
-        public unsafe Task ContinueSpeach(string text)
+        public unsafe Task ContinueSpeech(string text)
         {
             if (speachTask == null || speachTask.IsCompleted)
             {
