@@ -13,7 +13,8 @@ namespace Abuksigun.Piper
         readonly List<float[]> pcmBuffers = new List<float[]>();
         volatile int pcmBufferPointer = 0;
         volatile string queuedText = null;
-        Task speachTask = null;
+        Task speechTask = null;
+        System.Object speechTaskLock = new System.Object();
 
         // Event that gets fired in the else block of PCMRead
         public event Action StoppedPlaying;
@@ -36,46 +37,44 @@ namespace Abuksigun.Piper
         // Use when you want to interrupt the current speech and say new replica
         public unsafe Task Speak(string text, Int64 speakerId = -1)
         {
-            pcmBufferPointer = 0;
             if (speakerId >= 0)
             {
                 PiperLib.setSpeakerId(voice.Voice, speakerId);
             }
-            return OverrideSpeech(text);
-        }
 
-        // Use when you are streaming generating text, so you can override audiostream seamlessly while it's playing
-        // For example, LLM generates first 3 tokens "I'm going to", you can start playing them before generation ends
-        // And then override with "I'm going to school" while it's playing.
-        // This way you can minimize latency between generation and playback
-        public Task OverrideSpeech(string text)
-        {
             lock (pcmBuffers)
+            {
                 pcmBuffers.Clear();
+                pcmBufferPointer = 0;
+            }
+
             return ContinueSpeech(text);
         }
 
         // Use when you want to add more text to the current speech
         public unsafe Task ContinueSpeech(string text)
         {
-            if (speachTask == null || speachTask.IsCompleted)
+            lock (speechTaskLock)
             {
-                speachTask = Task.Run(() =>
+                if (speechTask == null || speechTask.IsCompleted)
                 {
-                    do
+                    speechTask = Task.Run(() =>
                     {
-                        voice.TextToAudioStream(text, (short* data, int length) => AddPCMData(data, length));
-                        text = queuedText;
-                        queuedText = null;
-                    }
-                    while (text != null);
-                });
+                        do
+                        {
+                            voice.TextToAudioStream(text, (short* data, int length) => AddPCMData(data, length));
+                            text = queuedText;
+                            queuedText = null;
+                        }
+                        while (text != null);
+                    });
+                }
+                else
+                {
+                    queuedText = text;
+                }
             }
-            else
-            {
-                queuedText = text;
-            }
-            return speachTask;
+            return speechTask;
         }
 
         void PCMRead(float[] data)
@@ -91,11 +90,11 @@ namespace Abuksigun.Piper
 
             while (dataIndex < dataLength)
             {
-                int bufferIndex = 0;
-                int bufferOffset = pcmBufferPointer;
-
                 lock (pcmBuffers)
                 {
+                    int bufferIndex = 0;
+                    int bufferOffset = pcmBufferPointer;
+
                     while (bufferIndex < pcmBuffers.Count && bufferOffset >= pcmBuffers[bufferIndex].Length)
                     {
                         bufferOffset -= pcmBuffers[bufferIndex].Length;
